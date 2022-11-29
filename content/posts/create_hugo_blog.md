@@ -3,7 +3,6 @@ title: "How i created my blog in 30 minutes"
 date: 2022-11-20T09:03:20-08:00
 draft: false
 ---
-## Creating a simple blog with hugo
 
 Seems like everyone today has a blog, a vlog and a podcast.
 
@@ -19,7 +18,6 @@ For a more detailed instruction visit [this link](https://docs.github.com/en/pag
 First, go to github and create a new repository with your name. example: `zigius/zigius.github.io`
 
 After you create the repo you can clone it
-clone the repository
 
 ### Create gh-pages branch
 Hugo deploys its static website files to a branch called gh-pages. You need to create a new branch with that name
