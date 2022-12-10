@@ -1,0 +1,252 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge,chrome=1"><title>Embedding an image in a markdown file using google api and luasnip | zlog - the zigius blog</title><meta name=viewport content="width=device-width,minimum-scale=1"><meta name=description content="Im currently working on building my second brain. I use neovim for everything I can. Seems like a no brainer to also try and use neovim as my notetaking app. A second brain consists of notes, images, videos, and much more. This post will focus on my workflow for adding images to markdown files.
+Storing images I store my notes in a github repo, and of course also locally on my laptop and phone."><meta name=generator content="Hugo 0.108.0"><meta name=robots content="noindex, nofollow"><link rel=stylesheet href=/ananke/css/main.min.css><meta property="og:title" content="Embedding an image in a markdown file using google api and luasnip"><meta property="og:description" content="Im currently working on building my second brain. I use neovim for everything I can. Seems like a no brainer to also try and use neovim as my notetaking app. A second brain consists of notes, images, videos, and much more. This post will focus on my workflow for adding images to markdown files.
+Storing images I store my notes in a github repo, and of course also locally on my laptop and phone."><meta property="og:type" content="article"><meta property="og:url" content="https://zigius.github.io/posts/creating-drive-plugin/"><meta property="article:section" content="posts"><meta property="article:published_time" content="2022-12-10T02:58:16+02:00"><meta property="article:modified_time" content="2022-12-10T02:58:16+02:00"><meta itemprop=name content="Embedding an image in a markdown file using google api and luasnip"><meta itemprop=description content="Im currently working on building my second brain. I use neovim for everything I can. Seems like a no brainer to also try and use neovim as my notetaking app. A second brain consists of notes, images, videos, and much more. This post will focus on my workflow for adding images to markdown files.
+Storing images I store my notes in a github repo, and of course also locally on my laptop and phone."><meta itemprop=datePublished content="2022-12-10T02:58:16+02:00"><meta itemprop=dateModified content="2022-12-10T02:58:16+02:00"><meta itemprop=wordCount content="1904"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Embedding an image in a markdown file using google api and luasnip"><meta name=twitter:description content="Im currently working on building my second brain. I use neovim for everything I can. Seems like a no brainer to also try and use neovim as my notetaking app. A second brain consists of notes, images, videos, and much more. This post will focus on my workflow for adding images to markdown files.
+Storing images I store my notes in a github repo, and of course also locally on my laptop and phone."></head><body class="ma0 avenir bg-near-white"><header><div class=bg-black><nav class="pv3 ph3 ph4-ns" role=navigation><div class="flex-l justify-between items-center center"><a href=/ class="f3 fw2 hover-white no-underline white-90 dib">zlog - the zigius blog</a><div class="flex-l items-center"><div class=ananke-socials></div></div></div></nav></div></header><main class=pb7 role=main><article class="flex-l flex-wrap justify-between mw8 center ph3"><header class="mt4 w-100"><aside class="instapaper_ignoref b helvetica tracked">POSTS</aside><div id=sharing class="mt3 ananke-socials"></div><h1 class="f1 athelas mt3 mb1">Embedding an image in a markdown file using google api and luasnip</h1><time class="f6 mv4 dib tracked" datetime=2022-12-10T02:58:16+02:00>December 10, 2022</time></header><div class="nested-copy-line-height lh-copy serif f4 nested-links mid-gray pr4-l w-two-thirds-l"><p>Im currently working on building my second brain. I use neovim for everything I can.
+Seems like a no brainer to also try and use neovim as my notetaking app.
+A second brain consists of notes, images, videos, and much more.
+This post will focus on my workflow for adding images to markdown files.</p><h2 id=storing-images>Storing images</h2><p>I store my notes in a github repo, and of course also locally on my laptop and phone.
+Storing images in the same way would be a bit combersome. As an alternative i decided to store my second brain
+images in my google drive and use the same format and folder structure.</p><p>My workflow goes like this:</p><ol><li>Take a screenshot of something i want to take note of.</li><li>Use macos snipping tool to save the screenshot in my drive.</li><li>go to google drive web client.</li><li>copy the link to the new image. the link is in the following format: <a href="https://drive.google.com/file/d/10GTx_K7hrtphNbJYV6bB-A9tqYbPEK3k/view?usp=share_link">https://drive.google.com/file/d/10GTx_K7hrtphNbJYV6bB-A9tqYbPEK3k/view?usp=share_link</a></li><li>take the id from the drive link: <code>10GTx_K7hrtphNbJYV6bB-A9tqYbPEK3k</code></li><li>create an embedded image link:</li></ol><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-md data-lang=md><span style=display:flex><span>![<span style=color:#f92672>image text</span>](<span style=color:#a6e22e>https://drive.google.com/uc?id=10GTx_K7hrtphNbJYV6bB-A9tqYbPEK3k</span>)
+</span></span></code></pre></div><p>This was ok to do at first, but it became annoying to perform so many steps everytime i want to add an image to a note</p><p>I decided to take a couple of steps to improve my workflow.</p><h2 id=first-try-at-improving-the-worflow>First try at improving the worflow</h2><p>I decided to create a lua snippet or a saved vim command that takes the contents in the clipboard (the last entry) and extracts the id of the entry.
+then it should paste an image tag for markdown
+(<code>![example image](https://drive.google.com/uc?id=1-tHUz2-5op1EBiJhZgpbnsTSpH2WjsLk)</code>)
+with the id of the image
+This will make my flow much shorter. Steps 5-7 will be replaced with a simple snippet</p><p>I started with creating my lua function:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-lua data-lang=lua><span style=display:flex><span><span style=color:#66d9ef>local</span> drive_image <span style=color:#f92672>=</span> <span style=color:#66d9ef>function</span>()
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> register <span style=color:#f92672>=</span> vim.fn.getreg(<span style=color:#e6db74>&#39;+&#39;</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> index, j <span style=color:#f92672>=</span> string.find(register, <span style=color:#e6db74>&#34;/d/(.-)/&#34;</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> index <span style=color:#f92672>==</span> <span style=color:#66d9ef>nil</span> <span style=color:#66d9ef>then</span> <span style=color:#66d9ef>return</span> { <span style=color:#e6db74>&#34;&#34;</span> } <span style=color:#66d9ef>end</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> id <span style=color:#f92672>=</span> string.sub(register, index <span style=color:#f92672>+</span> <span style=color:#ae81ff>3</span>, j <span style=color:#f92672>-</span> <span style=color:#ae81ff>1</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> { <span style=color:#e6db74>&#34;(https://drive.google.com/uc?id=&#34;</span> <span style=color:#f92672>..</span> id <span style=color:#f92672>..</span> <span style=color:#e6db74>&#34;)&#34;</span> }
+</span></span><span style=display:flex><span><span style=color:#66d9ef>end</span>
+</span></span></code></pre></div><p>We define a function <code>drive_image</code> that gets the contents of the unnamed register <code>+</code>.
+then we use <code>string.find</code> lua function to find the id in the link with a regex.
+we trim the unnessecary slashes and the extra <code>/d</code> from the regex results and return
+the link we need to use, to embed the image in the markdown file.</p><p>Next, I needed to define my luasnip snippet:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-lua data-lang=lua><span style=display:flex><span><span style=color:#66d9ef>local</span> status_ok, ls <span style=color:#f92672>=</span> pcall(require, <span style=color:#e6db74>&#34;luasnip&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> status_ok <span style=color:#66d9ef>then</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>end</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>local</span> snip <span style=color:#f92672>=</span> ls.snippet
+</span></span><span style=display:flex><span><span style=color:#66d9ef>local</span> t <span style=color:#f92672>=</span> ls.text_node
+</span></span><span style=display:flex><span><span style=color:#66d9ef>local</span> i <span style=color:#f92672>=</span> ls.insert_node
+</span></span><span style=display:flex><span><span style=color:#66d9ef>local</span> func <span style=color:#f92672>=</span> ls.function_node
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>require(<span style=color:#e6db74>&#34;luasnip.loaders.from_vscode&#34;</span>).lazy_load()
+</span></span><span style=display:flex><span>require(<span style=color:#e6db74>&#34;luasnip.loaders.from_snipmate&#34;</span>).lazy_load()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>ls.config.set_config {
+</span></span><span style=display:flex><span>  history <span style=color:#f92672>=</span> <span style=color:#66d9ef>true</span>,
+</span></span><span style=display:flex><span>  updateevents <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;TextChanged,TextChangedI&#34;</span>,
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>local</span> drive_image <span style=color:#f92672>=</span> <span style=color:#66d9ef>function</span>()
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> register <span style=color:#f92672>=</span> vim.fn.getreg(<span style=color:#e6db74>&#39;+&#39;</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> index, j <span style=color:#f92672>=</span> string.find(register, <span style=color:#e6db74>&#34;/d/(.-)/&#34;</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> index <span style=color:#f92672>==</span> <span style=color:#66d9ef>nil</span> <span style=color:#66d9ef>then</span> <span style=color:#66d9ef>return</span> { <span style=color:#e6db74>&#34;&#34;</span> } <span style=color:#66d9ef>end</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> id <span style=color:#f92672>=</span> string.sub(register, index <span style=color:#f92672>+</span> <span style=color:#ae81ff>3</span>, j <span style=color:#f92672>-</span> <span style=color:#ae81ff>1</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> { <span style=color:#e6db74>&#34;(https://drive.google.com/uc?id=&#34;</span> <span style=color:#f92672>..</span> id <span style=color:#f92672>..</span> <span style=color:#e6db74>&#34;)&#34;</span> }
+</span></span><span style=display:flex><span><span style=color:#66d9ef>end</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>ls.add_snippets(<span style=color:#66d9ef>nil</span>, {
+</span></span><span style=display:flex><span>  all <span style=color:#f92672>=</span> {
+</span></span><span style=display:flex><span>    snip({
+</span></span><span style=display:flex><span>      trig <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;drive-image&#34;</span>,
+</span></span><span style=display:flex><span>      namr <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;drive&#34;</span>,
+</span></span><span style=display:flex><span>      dscr <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;Inserts image from drive in markdown format&#34;</span>,
+</span></span><span style=display:flex><span>    }, {
+</span></span><span style=display:flex><span>      t(<span style=color:#e6db74>&#34;![&#34;</span>), i(<span style=color:#ae81ff>1</span>, <span style=color:#e6db74>&#34;image text&#34;</span>), t(<span style=color:#e6db74>&#34;]&#34;</span>), func(drive_image, {}),
+</span></span><span style=display:flex><span>    }),
+</span></span><span style=display:flex><span>  },
+</span></span><span style=display:flex><span>})
+</span></span></code></pre></div><p>I use luasnip as my snippet engine. I left only the relevant parts in the code.
+Basically we create a snippet that when invoked with <code>drive-image</code> will call my function
+<code>drive_image</code> and surround the returned result with: <code>![image text](&lt;RETURNED RESULT>)</code>, placing the
+cursor on the <code>i</code> of <code>image text</code> so we can replace the image text with a text of our liking.</p><p>This improves the workflow. the steps needed are reduced:</p><ol><li>Take a screenshot of something i want to take note of.</li><li>Use macos snipping tool to save the screenshot in my drive.</li><li>go to google drive web client.</li><li>copy the link to the new image. the link is in the following format: <code>https://drive.google.com/file/d/10GTx_K7hrtphNbJYV6bB-A9tqYbPEK3k/view?usp=share_link</code></li><li>use luasnippet with name <code>drive-image</code></li></ol><p>Instead of building the image markdown manually, which was a hassle, I can now use my snippet.
+The major bottleneck has been removed but i wanted to take it further</p><h2 id=second-try-at-improving-the-worflow>Second try at improving the worflow</h2><p>Leaving my editor to copy the link to the image can drastically increase the time it takes me to create a note with an image.
+Notes should be created with haste to so as they will not interfere with my current task.
+I decided to use google drive API to retrieve the id of the last image uploaded to my drive.
+I wanted to create a lua command or snippet that will use the API to get the id, instead of having to manually copying the link.
+I tried finding an existing google drive cli tool, but all were unmaintained and broken, so I created my own.</p><h3 id=create-a-google-developer-application>Create a google developer application.</h3><p>First, I needed to create a google cloud application.
+I visited the <a href=https://console.cloud.google.com/>google developer console</a> and created my app.
+<img src="https://drive.google.com/uc?id=10PcFGZwO6t76njYrraIN_IlOavJ1DJGw" alt="Creating a developer app"></p><p><img src="https://drive.google.com/uc?id=10QSiFHL3WBKDmRxL_Vx5isHaTNmKNa5m" alt="Developer console homepage"></p><p>Next, we need to enable apis and services:
+<img src="https://drive.google.com/uc?id=10XQeoZ9Zo79-1dou1Jwk3LVq-k4PJIaU" alt="image text"></p><p>After creating the app go to your <a href="https://console.cloud.google.com/apis/dashboard?project=hugo-drive-to-markdown">apis and services dashboard</a> page and
+click on <code>ENABLE APIS AND SERVICES</code> button, located at <a href="https://console.cloud.google.com/apis/library/browse?project=hugo-drive-to-markdown&q=drive">this link</a>.
+Search for google drive api:
+<img src="https://drive.google.com/uc?id=10Xe5r9KPe4xb1We0Qb9oGbT-GpOrchqR" alt="image text">
+and enable it:
+<img src="https://drive.google.com/uc?id=10Y_pX1Nh2VFWrjTWrC0Bhk7jUSCjVlFZ" alt=Enable>
+Now you need to create credentials for the api. Click on <code>CREATE CREDENTIALS</code> and select the drive api. We will be accessing user data so select that option when
+prompted to enter what data you will be accessing.</p><p>Click next
+now enter your app name and app details along with your email address.
+<img src="https://drive.google.com/uc?id=10Z42ENNWjaxa31A2d1rHX6idYO0MTLKQ" alt="image text">
+<img src="https://drive.google.com/uc?id=10k_tL74b-ub3uX_R-OYRZFALTFN0q2se" alt="image text">
+now we add scopes. The only scope the app will need is the following:
+<a href=https://www.googleapis.com/auth/drive.metadata.readonly>https://www.googleapis.com/auth/drive.metadata.readonly</a></p><p>select it and click the <code>update</code> button
+<img src="https://drive.google.com/uc?id=10mp6RRT54CXkWhW4kD6WrVH8Ehotkfkh" alt="image text">
+<img src="https://drive.google.com/uc?id=10nj6OygRINjBmZroAUKnLUzy9h0TmpeD" alt="image text">
+<img src="https://drive.google.com/uc?id=10tZH2T4fgnO4JCQFKRu5rXSonhszfhRj" alt="image text"></p><p>Now we need to create the OAuth client:
+Select the application type to be a Web application.
+Select a name for your app, and add an authorized javascript origin and redirect URI. For development
+purposes we will use localhost.
+<img src="https://drive.google.com/uc?id=113zWT0D_E_gDfcIbF1lZ4OSBNtdPppJ9" alt="image text"></p><p>click on done, and copy the client-id and download the client id and json file. We will need it soon.
+Here is an example of what that file is supposed to look like:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-json data-lang=json><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;web&#34;</span>: {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;client_id&#34;</span>: <span style=color:#e6db74>&#34;&lt;id&gt;.apps.googleusercontent.com&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;project_id&#34;</span>: <span style=color:#e6db74>&#34;&lt;project-id&gt;&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;auth_uri&#34;</span>: <span style=color:#e6db74>&#34;https://accounts.google.com/o/oauth2/auth&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;token_uri&#34;</span>: <span style=color:#e6db74>&#34;https://oauth2.googleapis.com/token&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;auth_provider_x509_cert_url&#34;</span>: <span style=color:#e6db74>&#34;https://www.googleapis.com/oauth2/v1/certs&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;client_secret&#34;</span>: <span style=color:#e6db74>&#34;&lt;client-secret&gt;&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;redirect_uris&#34;</span>: [<span style=color:#e6db74>&#34;http://localhost:8080/oauth2callback&#34;</span>],
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;javascript_origins&#34;</span>: [<span style=color:#e6db74>&#34;http://localhost:8080&#34;</span>]
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>We are done with configuring our credentials:
+<img src="https://drive.google.com/uc?id=114gvBgOC4Haxh0VIwaG1X7ZsGOvLdeTw" alt="image text"></p><blockquote><p>Make sure the client secret exists in the credentials file you downloaded. If you dont see the client_secret property you might need to
+reset or create it. you can reset it by going to the web credentials page we just created and clicking on create secret or alternatively, change secret:
+<img src="https://drive.google.com/uc?id=11El5GJneLNT-bw-HT7HE50eOB1ovuYiC" alt="image text"></p></blockquote><p>Another step you need to make is to approve your personal email as a developer:
+Go to the <a href="https://console.cloud.google.com/apis/credentials/consent?orgonly=true&project=hugo-drive-to-markdown&supportedpurview=organizationId">OAuth consent screen</a> and add a test user:
+<img src="https://drive.google.com/uc?id=11GCdF-4RDn-WInhyz_ozxxZfc9H0E9fp" alt="image text">
+set your email as the test user email.
+<img src="https://drive.google.com/uc?id=11Gti6cUobgoITWQIEAbTDS36LG5oVOK_" alt="image text"></p><p>Thats it! now we can create our cli app to use the credentials we just set up.</p><h3 id=create-a-nodejs-cli-app>Create a nodejs cli app</h3><p>We will be writing the application as a nodejs app.
+You can find the source code for the app <a href=https://github.com/zigius/drive-last-image-to-md>here</a>
+I pretty much combined two tutorials when creating the app.
+The first tutorial I used was the [nodejs quickstart] tutorial.
+It illustrates how you can set up and run an app that calls the google drive api.
+The second tutorial I used was <a href=https://thecodebarbarian.com/oauth-in-nodejs-cli-apps.html>OAuth in Node.js CLI Apps</a> on
+how to create a command line app that uses oauth to log in to slack. I combined the two tutorials to create my own cli app.
+here is the main cli_app.js code snippet:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-js data-lang=js><span style=display:flex><span><span style=color:#75715e>#!/usr/bin/env node
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span><span style=color:#e6db74>&#34;use strict&#34;</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> <span style=color:#a6e22e>fs</span> <span style=color:#a6e22e>from</span> <span style=color:#e6db74>&#34;fs&#34;</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> <span style=color:#a6e22e>Configstore</span> <span style=color:#a6e22e>from</span> <span style=color:#e6db74>&#34;configstore&#34;</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> <span style=color:#a6e22e>yargs</span> <span style=color:#a6e22e>from</span> <span style=color:#e6db74>&#34;yargs&#34;</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> <span style=color:#a6e22e>path</span>, { <span style=color:#a6e22e>dirname</span> } <span style=color:#a6e22e>from</span> <span style=color:#e6db74>&#39;path&#39;</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> { <span style=color:#a6e22e>fileURLToPath</span> } <span style=color:#a6e22e>from</span> <span style=color:#e6db74>&#39;url&#39;</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>__dirname</span> <span style=color:#f92672>=</span> <span style=color:#a6e22e>dirname</span>(<span style=color:#a6e22e>fileURLToPath</span>(<span style=color:#66d9ef>import</span>.<span style=color:#a6e22e>meta</span>.<span style=color:#a6e22e>url</span>));
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> { <span style=color:#a6e22e>google</span> } <span style=color:#a6e22e>from</span> <span style=color:#e6db74>&#34;googleapis&#34;</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> { <span style=color:#a6e22e>DriveClient</span> } <span style=color:#a6e22e>from</span> <span style=color:#e6db74>&#34;./services/driveClient.js&#34;</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> { <span style=color:#a6e22e>AuthenticationClient</span> } <span style=color:#a6e22e>from</span> <span style=color:#e6db74>&#34;./services/authenticationClient.js&#34;</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>config</span> <span style=color:#f92672>=</span> <span style=color:#66d9ef>new</span> <span style=color:#a6e22e>Configstore</span>(<span style=color:#e6db74>&#34;drive-cli&#34;</span>);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>/**
+</span></span></span><span style=display:flex><span><span style=color:#75715e> * To use OAuth2 authentication, we need access to a CLIENT_ID, CLIENT_SECRET, AND REDIRECT_URI.  To get these credentials for your application, visit https://console.cloud.google.com/apis/credentials.
+</span></span></span><span style=display:flex><span><span style=color:#75715e> */</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>keysFile</span> <span style=color:#f92672>=</span> <span style=color:#a6e22e>fs</span>.<span style=color:#a6e22e>readFileSync</span>(<span style=color:#a6e22e>path</span>.<span style=color:#a6e22e>resolve</span>(<span style=color:#a6e22e>__dirname</span>, <span style=color:#e6db74>&#39;./oauth2.keys.json&#39;</span>));
+</span></span><span style=display:flex><span><span style=color:#66d9ef>let</span> <span style=color:#a6e22e>keys</span> <span style=color:#f92672>=</span> <span style=color:#a6e22e>JSON</span>.<span style=color:#a6e22e>parse</span>(<span style=color:#a6e22e>keysFile</span>).<span style=color:#a6e22e>web</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>/**
+</span></span></span><span style=display:flex><span><span style=color:#75715e> * Create a new OAuth2 client with the configured keys.
+</span></span></span><span style=display:flex><span><span style=color:#75715e> */</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>oauth2Client</span> <span style=color:#f92672>=</span> <span style=color:#66d9ef>new</span> <span style=color:#a6e22e>google</span>.<span style=color:#a6e22e>auth</span>.<span style=color:#a6e22e>OAuth2</span>(
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>keys</span>.<span style=color:#a6e22e>client_id</span>,
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>keys</span>.<span style=color:#a6e22e>client_secret</span>,
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>keys</span>.<span style=color:#a6e22e>redirect_uris</span>[<span style=color:#ae81ff>0</span>]
+</span></span><span style=display:flex><span>);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>/**
+</span></span></span><span style=display:flex><span><span style=color:#75715e> * This is one of the many ways you can configure googleapis to use authentication credentials.  In this method, we&#39;re setting a global reference for all APIs.  Any other API you use here, like google.drive(&#39;v3&#39;), will now use this auth client. You can also override the auth client at the service and method call levels.
+</span></span></span><span style=display:flex><span><span style=color:#75715e> */</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>google</span>.<span style=color:#a6e22e>options</span>({ <span style=color:#a6e22e>auth</span><span style=color:#f92672>:</span> <span style=color:#a6e22e>oauth2Client</span> });
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>argv</span> <span style=color:#f92672>=</span> <span style=color:#a6e22e>yargs</span>(<span style=color:#a6e22e>process</span>.<span style=color:#a6e22e>argv</span>.<span style=color:#a6e22e>slice</span>(<span style=color:#ae81ff>2</span>))
+</span></span><span style=display:flex><span>  .<span style=color:#a6e22e>command</span>(
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;login&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;the login command&#34;</span>,
+</span></span><span style=display:flex><span>    () =&gt; {},
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> (<span style=color:#a6e22e>argv</span>) =&gt; {
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>let</span> <span style=color:#a6e22e>authenticationClient</span> <span style=color:#f92672>=</span> <span style=color:#66d9ef>new</span> <span style=color:#a6e22e>AuthenticationClient</span>(<span style=color:#a6e22e>oauth2Client</span>);
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>const</span> <span style=color:#a6e22e>credentials</span> <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> <span style=color:#a6e22e>authenticationClient</span>.<span style=color:#a6e22e>authenticate</span>();
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>oauth2Client</span>.<span style=color:#a6e22e>credentials</span> <span style=color:#f92672>=</span> <span style=color:#a6e22e>credentials</span>; <span style=color:#75715e>// eslint-disable-line require-atomic-updates
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>      <span style=color:#a6e22e>config</span>.<span style=color:#a6e22e>set</span>({ <span style=color:#a6e22e>credentials</span><span style=color:#f92672>:</span> <span style=color:#a6e22e>oauth2Client</span>.<span style=color:#a6e22e>credentials</span> });
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>process</span>.<span style=color:#a6e22e>exit</span>(<span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>  )
+</span></span><span style=display:flex><span>  .<span style=color:#a6e22e>command</span>(
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;lastFile&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;get last file&#34;</span>,
+</span></span><span style=display:flex><span>    () =&gt; {},
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> (<span style=color:#a6e22e>argv</span>) =&gt; {
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>let</span> <span style=color:#a6e22e>credentials</span> <span style=color:#f92672>=</span> <span style=color:#a6e22e>config</span>.<span style=color:#a6e22e>get</span>(<span style=color:#e6db74>&#34;credentials&#34;</span>);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>oauth2Client</span>.<span style=color:#a6e22e>credentials</span> <span style=color:#f92672>=</span> <span style=color:#a6e22e>credentials</span>;
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>let</span> <span style=color:#a6e22e>driveClient</span> <span style=color:#f92672>=</span> <span style=color:#66d9ef>new</span> <span style=color:#a6e22e>DriveClient</span>(<span style=color:#a6e22e>oauth2Client</span>, <span style=color:#a6e22e>google</span>);
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>let</span> <span style=color:#a6e22e>authenticationClient</span> <span style=color:#f92672>=</span> <span style=color:#66d9ef>new</span> <span style=color:#a6e22e>AuthenticationClient</span>(<span style=color:#a6e22e>oauth2Client</span>);
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>try</span> {
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>let</span> <span style=color:#a6e22e>id</span> <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> <span style=color:#a6e22e>driveClient</span>.<span style=color:#a6e22e>getLastFileId</span>();
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>console</span>.<span style=color:#a6e22e>log</span>(<span style=color:#a6e22e>id</span>);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#a6e22e>id</span>;
+</span></span><span style=display:flex><span>      } <span style=color:#66d9ef>catch</span> (<span style=color:#a6e22e>e</span>) {
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>credentials</span> <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> <span style=color:#a6e22e>authenticationClient</span>.<span style=color:#a6e22e>authenticate</span>();
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>oauth2Client</span>.<span style=color:#a6e22e>credentials</span> <span style=color:#f92672>=</span> <span style=color:#a6e22e>credentials</span>; <span style=color:#75715e>// eslint-disable-line require-atomic-updates
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>        <span style=color:#a6e22e>config</span>.<span style=color:#a6e22e>set</span>({ <span style=color:#a6e22e>credentials</span><span style=color:#f92672>:</span> <span style=color:#a6e22e>oauth2Client</span>.<span style=color:#a6e22e>credentials</span> });
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>let</span> <span style=color:#a6e22e>id</span> <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> <span style=color:#a6e22e>driveClient</span>.<span style=color:#a6e22e>getLastFileId</span>(<span style=color:#a6e22e>oauth2Client</span>);
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>console</span>.<span style=color:#a6e22e>log</span>(<span style=color:#a6e22e>id</span>);
+</span></span><span style=display:flex><span>      }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>  ).<span style=color:#a6e22e>argv</span>;
+</span></span></code></pre></div><p>It uses yargs to create the cli app.
+All you need to do to use the app from the command line is clone the repository, copy the credentials
+json file we downloaded earlier (with the name <code>oauth2.keys.json</code>) to the root of the repository, and run the following commands:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>chmod +x cli_app.js
+</span></span><span style=display:flex><span>./cli_app.js lastFile
+</span></span></code></pre></div><p>It will redirect you to a login screen and once you approve the OAuth authorization screen, the file id will be printed to the screen.</p><h3 id=create-a-luasnip-that-uses-my-cli-app>Create a luasnip that uses my cli app</h3><p>To use the command line app I created from within neovim I had to create a new lua function and snippet.
+Here is a snippet with the function code:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-lua data-lang=lua><span style=display:flex><span><span style=color:#66d9ef>local</span> drive_image_last <span style=color:#f92672>=</span> <span style=color:#66d9ef>function</span>()
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> handle <span style=color:#f92672>=</span> io.popen(<span style=color:#e6db74>&#34;cli_app.js lastFile&#34;</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> result <span style=color:#f92672>=</span> handle:read(<span style=color:#e6db74>&#34;*a&#34;</span>)
+</span></span><span style=display:flex><span>  handle:close()
+</span></span><span style=display:flex><span>  id <span style=color:#f92672>=</span> string.gsub(result, <span style=color:#e6db74>&#34;</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, <span style=color:#e6db74>&#34;&#34;</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> { <span style=color:#e6db74>&#34;(https://drive.google.com/uc?id=&#34;</span> <span style=color:#f92672>..</span> id <span style=color:#f92672>..</span> <span style=color:#e6db74>&#34;)&#34;</span> }
+</span></span><span style=display:flex><span><span style=color:#66d9ef>end</span>
+</span></span></code></pre></div><p>The function calls the api, and returns the link required to embed the file in the markdown, same format as we previously saw.
+To use the API from within neovim we also need to add our app to the <code>PATH</code> environment variable:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>export PATH<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;/Users/me/workspace/public-repos/drive-last-image-to-md:</span>$PATH<span style=color:#e6db74>&#34;</span>
+</span></span></code></pre></div><p>And here is the updated luasnip snippets file:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-lua data-lang=lua><span style=display:flex><span><span style=color:#66d9ef>local</span> status_ok, ls <span style=color:#f92672>=</span> pcall(require, <span style=color:#e6db74>&#34;luasnip&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> status_ok <span style=color:#66d9ef>then</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>end</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>local</span> snip <span style=color:#f92672>=</span> ls.snippet
+</span></span><span style=display:flex><span><span style=color:#66d9ef>local</span> t <span style=color:#f92672>=</span> ls.text_node
+</span></span><span style=display:flex><span><span style=color:#66d9ef>local</span> i <span style=color:#f92672>=</span> ls.insert_node
+</span></span><span style=display:flex><span><span style=color:#66d9ef>local</span> func <span style=color:#f92672>=</span> ls.function_node
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>require(<span style=color:#e6db74>&#34;luasnip.loaders.from_vscode&#34;</span>).lazy_load()
+</span></span><span style=display:flex><span>require(<span style=color:#e6db74>&#34;luasnip.loaders.from_snipmate&#34;</span>).lazy_load()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>ls.config.set_config {
+</span></span><span style=display:flex><span>  history <span style=color:#f92672>=</span> <span style=color:#66d9ef>true</span>,
+</span></span><span style=display:flex><span>  updateevents <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;TextChanged,TextChangedI&#34;</span>,
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>local</span> drive_image <span style=color:#f92672>=</span> <span style=color:#66d9ef>function</span>()
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> register <span style=color:#f92672>=</span> vim.fn.getreg(<span style=color:#e6db74>&#39;+&#39;</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> index, j <span style=color:#f92672>=</span> string.find(register, <span style=color:#e6db74>&#34;/d/(.-)/&#34;</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> index <span style=color:#f92672>==</span> <span style=color:#66d9ef>nil</span> <span style=color:#66d9ef>then</span> <span style=color:#66d9ef>return</span> { <span style=color:#e6db74>&#34;&#34;</span> } <span style=color:#66d9ef>end</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> id <span style=color:#f92672>=</span> string.sub(register, index <span style=color:#f92672>+</span> <span style=color:#ae81ff>3</span>, j <span style=color:#f92672>-</span> <span style=color:#ae81ff>1</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> { <span style=color:#e6db74>&#34;(https://drive.google.com/uc?id=&#34;</span> <span style=color:#f92672>..</span> id <span style=color:#f92672>..</span> <span style=color:#e6db74>&#34;)&#34;</span> }
+</span></span><span style=display:flex><span><span style=color:#66d9ef>end</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>ls.add_snippets(<span style=color:#66d9ef>nil</span>, {
+</span></span><span style=display:flex><span>  all <span style=color:#f92672>=</span> {
+</span></span><span style=display:flex><span>    snip({
+</span></span><span style=display:flex><span>      trig <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;drive-image-last&#34;</span>,
+</span></span><span style=display:flex><span>      namr <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;drive&#34;</span>,
+</span></span><span style=display:flex><span>      dscr <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;Inserts last image from drive in markdown format&#34;</span>,
+</span></span><span style=display:flex><span>    }, {
+</span></span><span style=display:flex><span>      t(<span style=color:#e6db74>&#34;![&#34;</span>), i(<span style=color:#ae81ff>1</span>, <span style=color:#e6db74>&#34;image text&#34;</span>), t(<span style=color:#e6db74>&#34;]&#34;</span>), func(drive_image_last, {}),
+</span></span><span style=display:flex><span>    }),
+</span></span><span style=display:flex><span>    snip({
+</span></span><span style=display:flex><span>      trig <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;drive-image&#34;</span>,
+</span></span><span style=display:flex><span>      namr <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;drive&#34;</span>,
+</span></span><span style=display:flex><span>      dscr <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;Inserts image from drive in markdown format&#34;</span>,
+</span></span><span style=display:flex><span>    }, {
+</span></span><span style=display:flex><span>      t(<span style=color:#e6db74>&#34;![&#34;</span>), i(<span style=color:#ae81ff>1</span>, <span style=color:#e6db74>&#34;image text&#34;</span>), t(<span style=color:#e6db74>&#34;]&#34;</span>), func(drive_image, {}),
+</span></span><span style=display:flex><span>    }),
+</span></span><span style=display:flex><span>  },
+</span></span><span style=display:flex><span>})
+</span></span></code></pre></div><p>Now that we are done the workflow is so much easier! only thing we need to do to add the image to our note is this:
+My workflow goes like this:</p><ol><li>Take a screenshot of something i want to take note of and use macos snipping tool to save the screenshot in my drive.</li><li>Use <code>drive-image-last</code> snippet to embed the last drive image to the markdown file</li></ol><p>Hope you enjoyed 😎</p><ul class=pa0></ul><div class="mt6 instapaper_ignoref"></div></div><aside class="w-30-l mt6-l"></aside></article></main><footer class="bg-black bottom-0 w-100 pa3" role=contentinfo><div class="flex justify-between"><a class="f4 fw4 hover-white no-underline white-70 dn dib-ns pv2 ph3" href=https://zigius.github.io/>&copy; zlog - the zigius blog 2022</a><div><div class=ananke-socials></div></div></div></footer></body></html>
