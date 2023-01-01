@@ -6,7 +6,7 @@ draft: false
 
 Today we are going to talk about monitoring our datalake tables. 
 
-At my company we have a datalake containing more than 3TB of data. 
+At my company we have a datalake containing more than 3PB of data. 
 The raw data is saved as compressed parquet files in S3. 
 We query our datalake using athena. 
 We needed a way to monitor our data to be able to quickly detect issues in our data pipeline. 
