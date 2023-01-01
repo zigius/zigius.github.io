@@ -1,0 +1,201 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge,chrome=1"><title>Monitor Athena Datalake Tables | zlog - the zigius blog</title><meta name=viewport content="width=device-width,minimum-scale=1"><meta name=description content="Today we are going to talk about monitoring our datalake tables.
+At my company we have a datalake containing more than 3TB of data. The raw data is saved as compressed parquet files in S3. We query our datalake using athena. We needed a way to monitor our data to be able to quickly detect issues in our data pipeline.
+We decided we want to be able to monitor various scenarios."><meta name=generator content="Hugo 0.109.0"><meta name=robots content="noindex, nofollow"><link rel=stylesheet href=/ananke/css/main.min.css><meta property="og:title" content="Monitor Athena Datalake Tables"><meta property="og:description" content="Today we are going to talk about monitoring our datalake tables.
+At my company we have a datalake containing more than 3TB of data. The raw data is saved as compressed parquet files in S3. We query our datalake using athena. We needed a way to monitor our data to be able to quickly detect issues in our data pipeline.
+We decided we want to be able to monitor various scenarios."><meta property="og:type" content="article"><meta property="og:url" content="https://zigius.github.io/posts/monitor-athena-datalake-tables/"><meta property="article:section" content="posts"><meta property="article:published_time" content="2022-12-26T19:42:36+02:00"><meta property="article:modified_time" content="2022-12-26T19:42:36+02:00"><meta itemprop=name content="Monitor Athena Datalake Tables"><meta itemprop=description content="Today we are going to talk about monitoring our datalake tables.
+At my company we have a datalake containing more than 3TB of data. The raw data is saved as compressed parquet files in S3. We query our datalake using athena. We needed a way to monitor our data to be able to quickly detect issues in our data pipeline.
+We decided we want to be able to monitor various scenarios."><meta itemprop=datePublished content="2022-12-26T19:42:36+02:00"><meta itemprop=dateModified content="2022-12-26T19:42:36+02:00"><meta itemprop=wordCount content="1643"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Monitor Athena Datalake Tables"><meta name=twitter:description content="Today we are going to talk about monitoring our datalake tables.
+At my company we have a datalake containing more than 3TB of data. The raw data is saved as compressed parquet files in S3. We query our datalake using athena. We needed a way to monitor our data to be able to quickly detect issues in our data pipeline.
+We decided we want to be able to monitor various scenarios."></head><body class="ma0 avenir bg-near-white"><header><div class=bg-black><nav class="pv3 ph3 ph4-ns" role=navigation><div class="flex-l justify-between items-center center"><a href=/ class="f3 fw2 hover-white no-underline white-90 dib">zlog - the zigius blog</a><div class="flex-l items-center"><div class=ananke-socials></div></div></div></nav></div></header><main class=pb7 role=main><article class="flex-l flex-wrap justify-between mw8 center ph3"><header class="mt4 w-100"><aside class="instapaper_ignoref b helvetica tracked">POSTS</aside><div id=sharing class="mt3 ananke-socials"></div><h1 class="f1 athelas mt3 mb1">Monitor Athena Datalake Tables</h1><time class="f6 mv4 dib tracked" datetime=2022-12-26T19:42:36+02:00>December 26, 2022</time></header><div class="nested-copy-line-height lh-copy serif f4 nested-links mid-gray pr4-l w-two-thirds-l"><p>Today we are going to talk about monitoring our datalake tables.</p><p>At my company we have a datalake containing more than 3TB of data.
+The raw data is saved as compressed parquet files in S3.
+We query our datalake using athena.
+We needed a way to monitor our data to be able to quickly detect issues in our data pipeline.</p><p>We decided we want to be able to monitor various scenarios.</p><ol><li>all of our tables size to prevent incorrect lifecycle policies and retention of the data or accidental
+deletions of entire tables. We will create an alert in case the table size
+is lower than an allowed threshold.</li><li>delete events in our tables.</li><li>partitions that have been deleted, and their size is now 0MB.</li></ol><p>We looked at a couple of different tools and solutions to try and give us the most coverage with the lowest cost.</p><h2 id=first-approach---direct-querying-of-datalake-table>First approach - direct querying of datalake table</h2><p>The advantages of this approach are clear. It is of course the simplest. We could monitor the size of the table using a
+simple ETL process that will query the athena table to get the count of rows in the table.
+For simplicity, from now on we will assume our datalake consists of a single table - <code>datalake.purchase_events</code>
+A simple query in the form of <code>select count(*) from datalake.purchase_events</code> can retrieve the amount of rows in the table.
+The query does not scan any data, it only queries the metadata files of the underlying data in s3.
+The issue is that although the query does not scan the data itself, this solution still cost us ~200$ a day!
+why, you ask? the reason is that most of our data is stored in SIA (AWS standard infrequent access) and the cost
+of even retrieving the metadata file from the SIA is very high. That is why we decided to try a different approach</p><h2 id=second-approach---access-logs>Second approach - access logs</h2><p>Due to security requirements, we already store access logs on the datalake bucket. Access logs can notify us on all the
+events that take place on files in the bucket (GET, DELETE, POST, LIST). We can use the logs to alert us in case large
+quantities of data have been marked for deletion, or deleted. Also, we can create an aggregate ETL that will index the size
+of the tables and change it according to the events on the table. We started with a POC to test this solution.</p><p>The first step was to create an athena table from the access logs so it will be more convenient for us to query the logs.
+I used <a href=https://aws.amazon.com/blogs/big-data/easily-query-aws-service-logs-using-amazon-athena/>this guide</a> to set up the athena table.</p><p>This is how you create the table:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sql data-lang=sql><span style=display:flex><span><span style=color:#66d9ef>CREATE</span> <span style=color:#66d9ef>EXTERNAL</span> <span style=color:#66d9ef>TABLE</span> <span style=color:#f92672>`</span>s3_access_logs_db.mybucket_logs<span style=color:#f92672>`</span>(
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>bucketowner<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>bucket_name<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>requestdatetime<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>remoteip<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>requester<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>requestid<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span><span style=color:#66d9ef>operation</span><span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span><span style=color:#66d9ef>key</span><span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>request_uri<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>httpstatus<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>errorcode<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>bytessent<span style=color:#f92672>`</span> BIGINT,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>objectsize<span style=color:#f92672>`</span> BIGINT,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>totaltime<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>turnaroundtime<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>referrer<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>useragent<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>versionid<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>hostid<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>sigv<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>ciphersuite<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>authtype<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>endpoint<span style=color:#f92672>`</span> STRING,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>tlsversion<span style=color:#f92672>`</span> STRING)
+</span></span><span style=display:flex><span><span style=color:#66d9ef>ROW</span> FORMAT SERDE
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#39;org.apache.hadoop.hive.serde2.RegexSerDe&#39;</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>WITH</span> SERDEPROPERTIES (
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#39;input.regex&#39;</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#39;([^ ]*) ([^ ]*) \\[(.*?)\\] ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) (\&#34;[^\&#34;]*\&#34;|-) (-|[0-9]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) (\&#34;[^\&#34;]*\&#34;|-) ([^ ]*)(?: ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*))?.*$&#39;</span>)
+</span></span><span style=display:flex><span>STORED <span style=color:#66d9ef>AS</span> INPUTFORMAT
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#39;org.apache.hadoop.mapred.TextInputFormat&#39;</span>
+</span></span><span style=display:flex><span>OUTPUTFORMAT
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#39;org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat&#39;</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>LOCATION</span>
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#39;s3://awsexamplebucket1-logs/prefix/&#39;</span>
+</span></span></code></pre></div><p>to fetch the access logs data we can use the following query:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sql data-lang=sql><span style=display:flex><span><span style=color:#66d9ef>SELECT</span> <span style=color:#f92672>*</span> <span style=color:#66d9ef>FROM</span> <span style=color:#e6db74>&#34;s3_access_logs_db.mybucket_logs&#34;</span> <span style=color:#66d9ef>limit</span> <span style=color:#ae81ff>10</span>;
+</span></span></code></pre></div><p>After creating the table we noticed that there is no easy way to partition the data.
+The only way we found that can reduce the query cost is using aggressive lifecycle policy on the bucket to delete old records,
+which we could not use due to security requirements. Also, querying access logs of a single day still holds a lot of data - around 70GB per query.
+Without date partitions, querying the access logs table proved too expensive.</p><h2 id=third-approach---using-cloudtrail>Third approach - using cloudtrail</h2><p>When creating an athena table to query cloudtrail logs, it is possible to add partitions to the table.
+you can follow <a href=https://docs.aws.amazon.com/athena/latest/ug/cloudtrail-logs.html>this guide</a> to create the athena table:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sql data-lang=sql><span style=display:flex><span><span style=color:#66d9ef>CREATE</span> <span style=color:#66d9ef>EXTERNAL</span> <span style=color:#66d9ef>TABLE</span> <span style=color:#f92672>`</span>cloudtrail_logs_mybucket<span style=color:#f92672>`</span>(
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>eventversion<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>useridentity<span style=color:#f92672>`</span> struct<span style=color:#f92672>&lt;</span><span style=color:#66d9ef>type</span>:string,principalid:string,arn:string,accountid:string,invokedby:string,accesskeyid:string,username:string,sessioncontext:struct<span style=color:#f92672>&lt;</span>attributes:struct<span style=color:#f92672>&lt;</span>mfaauthenticated:string,creationdate:string<span style=color:#f92672>&gt;</span>,sessionissuer:struct<span style=color:#f92672>&lt;</span><span style=color:#66d9ef>type</span>:string,principalid:string,arn:string,accountid:string,username:string<span style=color:#f92672>&gt;&gt;&gt;</span> <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>eventtime<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>eventsource<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>eventname<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>awsregion<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>sourceipaddress<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>useragent<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>errorcode<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>errormessage<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>requestparameters<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>responseelements<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>additionaleventdata<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>requestid<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>eventid<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>resources<span style=color:#f92672>`</span> array<span style=color:#f92672>&lt;</span>struct<span style=color:#f92672>&lt;</span>arn:string,accountid:string,<span style=color:#66d9ef>type</span>:string<span style=color:#f92672>&gt;&gt;</span> <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>eventtype<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>apiversion<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>readonly<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>recipientaccountid<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>serviceeventdetails<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>sharedeventid<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>vpcendpointid<span style=color:#f92672>`</span> string <span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;from deserializer&#39;</span>)
+</span></span><span style=display:flex><span><span style=color:#66d9ef>COMMENT</span> <span style=color:#e6db74>&#39;CloudTrail table for mybucket&#39;</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>ROW</span> FORMAT SERDE 
+</span></span><span style=display:flex><span><span style=color:#e6db74>&#39;com.amazon.emr.hive.serde.CloudTrailSerde&#39;</span> 
+</span></span><span style=display:flex><span>STORED <span style=color:#66d9ef>AS</span> INPUTFORMAT 
+</span></span><span style=display:flex><span><span style=color:#e6db74>&#39;com.amazon.emr.cloudtrail.CloudTrailInputFormat&#39;</span> 
+</span></span><span style=display:flex><span>OUTPUTFORMAT 
+</span></span><span style=display:flex><span><span style=color:#e6db74>&#39;org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat&#39;</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>LOCATION</span>
+</span></span><span style=display:flex><span><span style=color:#e6db74>&#39;s3://access_logs_bucket_path/AWSLogs/account_id/CloudTrail&#39;</span>
+</span></span><span style=display:flex><span>TBLPROPERTIES (
+</span></span><span style=display:flex><span><span style=color:#e6db74>&#39;classification&#39;</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#39;cloudtrail&#39;</span>, 
+</span></span><span style=display:flex><span><span style=color:#e6db74>&#39;transient_lastDdlTime&#39;</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#39;1605028457&#39;</span>)
+</span></span></code></pre></div><p>From what i gathered cloudtrail costs for data events storage is very high. Just the storage of data events trails for the entire bucket will cost us around ~150$ a day.
+It will make the cloudtrail solution unusable.
+cost estimate taken from the following calculation:
+<code>307446651 / 100000 * 0.1</code>. cloudtrail pricing taken from <a href=https://aws.amazon.com/cloudtrail/pricing/>here</a> (paid tier)</p><p>Even after reducing the cloudtrail logs only to the athena folder, storage costs alone are at around $30 a day for our scale of data.</p><h2 id=fourth-approach---using-s3-inventory>Fourth approach - using S3 inventory</h2><p>After trying a lot of different solutions we settled on using S3 inventory to monitor our tables.
+<a href=https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-inventory.html>S3 inventory</a> is a service that helps you manage your storage. It gives you a daily report on the
+state of every file in your bucket. Also, you can use athena to query your inventory files. First you need to enable it, select the source bucket and the destination folder for the
+inventory file. After you enable the service you can create an Athena table to query the data.
+Another great thing about S3 inventory is that it does not cost a lot of money. Storage costs for the destination folder are around ~$3 dollars for daily data.
+Only con for this solution is that there is no way to use it for real time monitoring since the report is sent once a day.
+here is the query to generate the table:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sql data-lang=sql><span style=display:flex><span><span style=color:#66d9ef>CREATE</span> <span style=color:#66d9ef>EXTERNAL</span> <span style=color:#66d9ef>TABLE</span> <span style=color:#f92672>`</span>s3<span style=color:#f92672>-</span>inventory<span style=color:#f92672>-</span>athena<span style=color:#f92672>-</span><span style=color:#66d9ef>table</span><span style=color:#f92672>`</span>(
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>bucket<span style=color:#f92672>`</span> string, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span><span style=color:#66d9ef>key</span><span style=color:#f92672>`</span> string, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>version_id<span style=color:#f92672>`</span> string, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>is_latest<span style=color:#f92672>`</span> boolean, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>is_delete_marker<span style=color:#f92672>`</span> boolean, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span><span style=color:#66d9ef>size</span><span style=color:#f92672>`</span> bigint, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>last_modified_date<span style=color:#f92672>`</span> bigint, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>e_tag<span style=color:#f92672>`</span> string, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>storage_class<span style=color:#f92672>`</span> string, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>is_multipart_uploaded<span style=color:#f92672>`</span> boolean, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>replication_status<span style=color:#f92672>`</span> string, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>encryption_status<span style=color:#f92672>`</span> string, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>object_lock_retain_until_date<span style=color:#f92672>`</span> bigint, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>object_lock_mode<span style=color:#f92672>`</span> string, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>object_lock_legal_hold_status<span style=color:#f92672>`</span> string, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>intelligent_tiering_access_tier<span style=color:#f92672>`</span> string, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>bucket_key_status<span style=color:#f92672>`</span> string, 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>checksum_algorithm<span style=color:#f92672>`</span> string)
+</span></span><span style=display:flex><span>PARTITIONED <span style=color:#66d9ef>BY</span> ( 
+</span></span><span style=display:flex><span>  <span style=color:#f92672>`</span>dt<span style=color:#f92672>`</span> string)
+</span></span><span style=display:flex><span><span style=color:#66d9ef>ROW</span> FORMAT SERDE 
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#39;org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe&#39;</span> 
+</span></span><span style=display:flex><span>STORED <span style=color:#66d9ef>AS</span> INPUTFORMAT 
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#39;org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat&#39;</span> 
+</span></span><span style=display:flex><span>OUTPUTFORMAT 
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#39;org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat&#39;</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>LOCATION</span>
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#39;s3://your_bucket_path/AWSLogs/account_id/CloudTrail&#39;</span>
+</span></span><span style=display:flex><span>TBLPROPERTIES (
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#39;projection.dt.format&#39;</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#39;yyyy-MM-dd-HH-mm&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#39;projection.dt.interval&#39;</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#39;1&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#39;projection.dt.interval.unit&#39;</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#39;DAYS&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#39;projection.dt.range&#39;</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#39;2022-01-01-00-00,NOW&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#39;projection.dt.type&#39;</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#39;date&#39;</span>, 
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#39;projection.enabled&#39;</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#39;true&#39;</span>)
+</span></span></code></pre></div><p>For more information follow <a href=https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-inventory-athena-query.html>this guide</a></p><p>After creating the table we set out to creating our DAG.
+We use airflow for our ETL workloads so we created a DAG that will run every 12 hours and send a metric to our Graylog metric service.</p><h3 id=monitor-tables-size>monitor tables size</h3><p>To monitor the sizes of our athena tables we used the following query:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>monitor_athena_tables_size</span>(self):
+</span></span><span style=display:flex><span>    query <span style=color:#f92672>=</span> <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    select 
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        split_part(key, &#39;/&#39;, 5) as bucket_path, 
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        sum(size) bucket_count
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    from default.s3-inventory-athena-table
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    where dt = &#39;</span><span style=color:#e6db74>{</span>datetime<span style=color:#f92672>.</span>datetime<span style=color:#f92672>.</span>now() <span style=color:#f92672>-</span> datetime<span style=color:#f92672>.</span>timedelta(days<span style=color:#f92672>=</span><span style=color:#ae81ff>1</span>)<span style=color:#e6db74>}</span><span style=color:#e6db74>&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        and is_latest
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        and not is_delete_marker
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        and split_part(key, &#39;/&#39;, 4) = &#39;athena&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        and split_part(key, &#39;/&#39;, 2) = &#39;production&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        and split_part(key, &#39;/&#39;, 7) = &#39;output&#39; -- only check output folder
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    group by 1
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    self<span style=color:#f92672>.</span>_logger<span style=color:#f92672>.</span>info(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;query: </span><span style=color:#e6db74>{</span>query<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>)
+</span></span><span style=display:flex><span>    result <span style=color:#f92672>=</span> pd<span style=color:#f92672>.</span>read_sql(query, self<span style=color:#f92672>.</span>connection)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> _, row <span style=color:#f92672>in</span> result<span style=color:#f92672>.</span>iterrows():
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>_metrics<span style=color:#f92672>.</span>value(
+</span></span><span style=display:flex><span>            measurement_name<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;athena_delete_monitoring_table_size&#34;</span>,
+</span></span><span style=display:flex><span>            value<span style=color:#f92672>=</span>row[<span style=color:#ae81ff>1</span>],
+</span></span><span style=display:flex><span>            bucket_path_id<span style=color:#f92672>=</span>row[<span style=color:#ae81ff>0</span>],
+</span></span><span style=display:flex><span>        )
+</span></span></code></pre></div><p>This code snippets queries the s3 inventory data from 1 day ago, splits it by each table id, and uses <code>sum(size)</code> to aggregate the total size of each table.
+After we execute the query we send a gauge metric to Graylog (using statsd) with the id of the table and the sum of its size.
+Here is an example of how we use that metric to create a grafana dashboard with an alert in case the size of the table drops:
+<img src="https://drive.google.com/uc?id=11_82kE-rGXqrT9k6JoGJb0vJp7m-rvyz" alt="purchase events table size"></p><h3 id=monitor-delete-events>monitor delete events</h3><p>We want to be aware if we see an unusual increase in delete events. Our S3 bucket is set up using versioning so initially files are not really deleted, they
+simply mark the file as deleted using a delete marker
+(Notice that in the previous query to calculate the total size of each table we filtered files which are not marked as latest and also files who are marked as deleted).
+So to get a count of delete markers per table we can use the following code snippet:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>monitor_athena_tables_delete_markers</span>(self):
+</span></span><span style=display:flex><span>    query <span style=color:#f92672>=</span> <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    select 
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        split_part(key, &#39;/&#39;, 5) as bucket_path, 
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        count(*) bucket_count 
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    from default.s3-inventory-athena-table
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    where dt = &#39;</span><span style=color:#e6db74>{</span>datetime<span style=color:#f92672>.</span>datetime<span style=color:#f92672>.</span>now() <span style=color:#f92672>-</span> datetime<span style=color:#f92672>.</span>timedelta(days<span style=color:#f92672>=</span><span style=color:#ae81ff>1</span>)<span style=color:#e6db74>}</span><span style=color:#e6db74>&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        and is_latest
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        and is_delete_marker
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        and split_part(key, &#39;/&#39;, 4) = &#39;athena&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        and split_part(key, &#39;/&#39;, 2) = &#39;production&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        and split_part(key, &#39;/&#39;, 7) = &#39;output&#39; -- only check output folder
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    group by 1
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    self<span style=color:#f92672>.</span>_logger<span style=color:#f92672>.</span>info(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;query: </span><span style=color:#e6db74>{</span>query<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>)
+</span></span><span style=display:flex><span>    result <span style=color:#f92672>=</span> pd<span style=color:#f92672>.</span>read_sql(query, self<span style=color:#f92672>.</span>connection)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> _, row <span style=color:#f92672>in</span> result<span style=color:#f92672>.</span>iterrows():
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>_metrics<span style=color:#f92672>.</span>value(
+</span></span><span style=display:flex><span>            measurement_name<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;athena_delete_monitoring_delete_markers_count&#34;</span>,
+</span></span><span style=display:flex><span>            value<span style=color:#f92672>=</span>row[<span style=color:#ae81ff>1</span>],
+</span></span><span style=display:flex><span>            bucket_path_id<span style=color:#f92672>=</span>row[<span style=color:#ae81ff>0</span>],
+</span></span><span style=display:flex><span>        )
+</span></span></code></pre></div><p>This code snippets queries the s3 inventory data from 1 day ago, splits it by each table id, and uses <code>count(*)</code> to aggregate the count of delete markers per table.
+After we execute the query we send a gauge metric to Graylog (using statsd) with the id of the table and the count of delete events.
+Here is an example of how we use that metric to create a grafana dashboard with an alert in case we see a high increase in delete events:
+<img src="https://drive.google.com/uc?id=11bZ1iVDD6H-EwmFUR1sIwDpzIkVeerpQ" alt="purchase_events delete markers count">
+(It&rsquo;s normal to see a high number of delete events regularly because the table has a lifecycle policy to delete old partitions)</p><h2 id=final-words>final words</h2><p>So this turned out to be quite a long post. In the next post we will continue to review how we use S3 inventory to monitor deletions of data on specific partitions</p><ul class=pa0></ul><div class="mt6 instapaper_ignoref"></div></div><aside class="w-30-l mt6-l"></aside></article></main><footer class="bg-black bottom-0 w-100 pa3" role=contentinfo><div class="flex justify-between"><a class="f4 fw4 hover-white no-underline white-70 dn dib-ns pv2 ph3" href=https://zigius.github.io/>&copy; zlog - the zigius blog 2023</a><div><div class=ananke-socials></div></div></div></footer></body></html>
