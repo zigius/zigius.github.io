@@ -1,0 +1,93 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge,chrome=1"><title>Create Neovim Plugin | zlog - the zigius blog</title><meta name=viewport content="width=device-width,minimum-scale=1"><meta name=description content="DISCLAMER: This blog post will be updated every time i improve the workflow I use when creating plugins
+I recently started working on creating some plugins in neovim. In this post I will show you how I created a simple plugin to open the current file in Obsidian
+getting started First I created a github repo for my plugin. The name I gave my repo is open-in-obsidian.nvim here is the link to the repo if you simply want to view the code."><meta name=generator content="Hugo 0.110.0"><meta name=robots content="noindex, nofollow"><link rel=stylesheet href=/ananke/css/main.min.css><meta property="og:title" content="Create Neovim Plugin"><meta property="og:description" content="DISCLAMER: This blog post will be updated every time i improve the workflow I use when creating plugins
+I recently started working on creating some plugins in neovim. In this post I will show you how I created a simple plugin to open the current file in Obsidian
+getting started First I created a github repo for my plugin. The name I gave my repo is open-in-obsidian.nvim here is the link to the repo if you simply want to view the code."><meta property="og:type" content="article"><meta property="og:url" content="https://zigius.github.io/posts/create-neovim-plugin/"><meta property="article:section" content="posts"><meta property="article:published_time" content="2023-01-14T15:57:29+02:00"><meta property="article:modified_time" content="2023-01-14T15:57:29+02:00"><meta itemprop=name content="Create Neovim Plugin"><meta itemprop=description content="DISCLAMER: This blog post will be updated every time i improve the workflow I use when creating plugins
+I recently started working on creating some plugins in neovim. In this post I will show you how I created a simple plugin to open the current file in Obsidian
+getting started First I created a github repo for my plugin. The name I gave my repo is open-in-obsidian.nvim here is the link to the repo if you simply want to view the code."><meta itemprop=datePublished content="2023-01-14T15:57:29+02:00"><meta itemprop=dateModified content="2023-01-14T15:57:29+02:00"><meta itemprop=wordCount content="749"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Create Neovim Plugin"><meta name=twitter:description content="DISCLAMER: This blog post will be updated every time i improve the workflow I use when creating plugins
+I recently started working on creating some plugins in neovim. In this post I will show you how I created a simple plugin to open the current file in Obsidian
+getting started First I created a github repo for my plugin. The name I gave my repo is open-in-obsidian.nvim here is the link to the repo if you simply want to view the code."></head><body class="ma0 avenir bg-near-white"><header><div class=bg-black><nav class="pv3 ph3 ph4-ns" role=navigation><div class="flex-l justify-between items-center center"><a href=/ class="f3 fw2 hover-white no-underline white-90 dib">zlog - the zigius blog</a><div class="flex-l items-center"><div class=ananke-socials></div></div></div></nav></div></header><main class=pb7 role=main><article class="flex-l flex-wrap justify-between mw8 center ph3"><header class="mt4 w-100"><aside class="instapaper_ignoref b helvetica tracked">POSTS</aside><div id=sharing class="mt3 ananke-socials"></div><h1 class="f1 athelas mt3 mb1">Create Neovim Plugin</h1><time class="f6 mv4 dib tracked" datetime=2023-01-14T15:57:29+02:00>January 14, 2023</time></header><div class="nested-copy-line-height lh-copy serif f4 nested-links mid-gray pr4-l w-two-thirds-l"><blockquote><p><strong><em>DISCLAMER:</em></strong>
+This blog post will be updated every time i improve the workflow I use when creating plugins</p></blockquote><p>I recently started working on creating some plugins in neovim. In this post I will show
+you how I created a simple plugin to open the current file in Obsidian</p><h2 id=getting-started>getting started</h2><p>First I created a github repo for my plugin. The name I gave my repo is <code>open-in-obsidian.nvim</code>
+<a href=https://github.com/zigius/open-in-obsidian.nvim>here</a> is the link to the repo if you
+simply want to view the code.</p><p>After creating the repository I created my folder structure.</p><pre tabindex=0><code>lua/
+  obs/
+    init.lua
+    utils.lua
+  plugin/
+    init.lua
+  tests/
+    test_utils.lua
+</code></pre><p>Now that the folder structure is in place we can start working on the main file of the plugin: <code>lua/obs/init.lua</code></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-lua data-lang=lua><span style=display:flex><span><span style=color:#66d9ef>local</span> M <span style=color:#f92672>=</span> {}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>M.open_in_obsidian <span style=color:#f92672>=</span> <span style=color:#66d9ef>function</span>()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> relative_path <span style=color:#f92672>=</span> require<span style=color:#e6db74>&#34;obs.utils&#34;</span>.get_git_relative_path()
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> vault <span style=color:#f92672>=</span> require<span style=color:#e6db74>&#34;obs.utils&#34;</span>.get_git_root_folder()
+</span></span><span style=display:flex><span>  <span style=color:#75715e>-- !open &#34;obsidian://open?vault=notes&amp;file=second_brain/resources/the_happy_sleeper&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>-- temp path</span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>-- relative_path = &#34;second_brain/resources/the_happy_sleeper.md&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> cmd <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;!open </span><span style=color:#ae81ff>\&#34;</span><span style=color:#e6db74>obsidian://open?vault=&#34;</span> <span style=color:#f92672>..</span> vault <span style=color:#f92672>..</span> <span style=color:#e6db74>&#34;&amp;file=&#34;</span> <span style=color:#f92672>..</span> relative_path <span style=color:#f92672>..</span> <span style=color:#e6db74>&#34;</span><span style=color:#ae81ff>\&#34;</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>  vim.api.nvim_command(cmd)
+</span></span><span style=display:flex><span><span style=color:#66d9ef>end</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>-- M.setup({ vault = &#34;notes&#34; })</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>-- M.open_in_obsidian()</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>return</span> M
+</span></span></code></pre></div><p>Lets go over the code.
+A common practice when creating lua modules is to create a local table <code>M</code>, add the functionallity
+you wish to expose as functions of the table, and return it. example:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-lua data-lang=lua><span style=display:flex><span><span style=color:#66d9ef>local</span> M <span style=color:#f92672>=</span> {}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>M.open_in_obsidian <span style=color:#f92672>=</span> <span style=color:#66d9ef>function</span>()
+</span></span><span style=display:flex><span>  print(<span style=color:#e6db74>&#34;hello from obsidian plugin&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#66d9ef>end</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>return</span> M
+</span></span></code></pre></div><p>I used the same practice in this plugin.</p><p>The <code>open_in_obsidian</code> method is the method doing the heavy lifting. It starts by calling two other functions, <code>get_git_relative_path()</code> and <code>get_git_root_folder()</code>, both
+of which are defined in a module called <code>obs.utils</code>, which we will go over later.
+The <code>get_git_relative_path()</code> function returns the path of the current file relative to the git folder, and <code>get_git_root_folder()</code> returns the name of the root git folder.
+The relative path is used as the file name we would like to open.
+The root folder is the name of the <a href=https://help.obsidian.md/Getting+started/Create+a+vault>vault</a> in obsidian.</p><p>The function then constructs the <a href=https://help.obsidian.md/Advanced+topics/Using+obsidian+URI>Obisidian URL</a> to open the file in obsidian, and wraps it in a vim open command.
+an example of the output will look something like this:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>!open <span style=color:#e6db74>&#34;obsidian://open?vault=vault_name&amp;file=folder1/folder2/file.md&#34;</span>
+</span></span></code></pre></div><p>The command string is then passed to vim.api.nvim_command(cmd), which will execute the command as an Ex command in Neovim.</p><p>The plugin folder contains the code that creates the user command which we will be able to execute from neovim. From what i could gather as a best practice
+to writing neovim plugins, the plugin file is where you define the user commands and keybindings of the plugin.
+Here is how the code looks:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-lua data-lang=lua><span style=display:flex><span><span style=color:#75715e>-- Register the command in your plugin file</span>
+</span></span><span style=display:flex><span>vim.api.nvim_create_user_command(<span style=color:#e6db74>&#34;Obisidian&#34;</span>, <span style=color:#66d9ef>function</span>()
+</span></span><span style=display:flex><span>  require<span style=color:#e6db74>&#34;obs&#34;</span>.open_in_obsidian()
+</span></span><span style=display:flex><span><span style=color:#66d9ef>end</span>, { nargs <span style=color:#f92672>=</span> <span style=color:#ae81ff>0</span> })
+</span></span><span style=display:flex><span><span style=color:#75715e>-- vim.api.nvim_create_user_command(&#34;SummarizeArticle&#34;, SummarizeArticle, { nargs = 1})</span>
+</span></span></code></pre></div><p>We create a user command called <code>Obsidian</code> that requires our main module and
+calls the open in obsidian function.
+I also created two util functions to help me construct the url to pass to obsidian.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-lua data-lang=lua><span style=display:flex><span>M.get_git_relative_path <span style=color:#f92672>=</span> <span style=color:#66d9ef>function</span>()
+</span></span><span style=display:flex><span>  <span style=color:#75715e>-- Get the full path of the current file</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> file_path <span style=color:#f92672>=</span> vim.api.nvim_call_function(<span style=color:#e6db74>&#34;expand&#34;</span>, {<span style=color:#e6db74>&#34;%:p&#34;</span>})
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>-- Get the path of the root git repository</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> git_root_path <span style=color:#f92672>=</span> vim.api.nvim_call_function(<span style=color:#e6db74>&#34;system&#34;</span>, {<span style=color:#e6db74>&#34;git rev-parse --show-toplevel&#34;</span>}):gsub(<span style=color:#e6db74>&#34;</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, <span style=color:#e6db74>&#34;&#34;</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> relative_path <span style=color:#f92672>=</span> string.sub(file_path,string.len(git_root_path)<span style=color:#f92672>+</span><span style=color:#ae81ff>2</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> relative_path
+</span></span><span style=display:flex><span><span style=color:#66d9ef>end</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>M.get_git_root_folder <span style=color:#f92672>=</span> <span style=color:#66d9ef>function</span>()
+</span></span><span style=display:flex><span>  <span style=color:#75715e>-- Get the path of the root git repository</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> git_root_path <span style=color:#f92672>=</span> vim.api.nvim_call_function(<span style=color:#e6db74>&#34;system&#34;</span>, {<span style=color:#e6db74>&#34;git rev-parse --show-toplevel&#34;</span>}):gsub(<span style=color:#e6db74>&#34;</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, <span style=color:#e6db74>&#34;&#34;</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>local</span> git_root_folder <span style=color:#f92672>=</span> string.match(git_root_path, <span style=color:#e6db74>&#34;([^/]+)/?$&#34;</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> git_root_folder
+</span></span><span style=display:flex><span><span style=color:#66d9ef>end</span>
+</span></span></code></pre></div><p>The first function <code>get_git_relative_path</code> gets the relative path of
+the current file in the context of its git repository. The function first gets
+the full path of the current file by calling the Neovim API function
+<code>nvim_call_function</code> with the argument <code>expand</code> and the parameter <code>%:p</code>, which
+is a Vim special variable that expands to the current file path. Then, it gets
+the path of the root git repository by calling the Neovim API function
+&ldquo;nvim_call_function&rdquo; with the argument &ldquo;system&rdquo; and the parameter &ldquo;git rev-parse
+&ndash;show-toplevel&rdquo;. The returned value is processed by removing newline characters
+with the gsub function. Then, it calculates the relative path by taking a
+substring of the current file path starting from the length of the git root path
++2. Finally, it returns the relative path.</p><p>The second function <code>get_git_root_folder</code> uses almost the same functionallity to
+get the root folder, which in Obsidian terms is the name of the vault.
+You can check out the tests folder to see how I checked that the functions work
+as I expected them to.</p><p>That&rsquo;s about it. I will continue updating this blog post and repo as I find some
+more tips and tricks on how to create neovim plugins so stay tuned.</p><ul class=pa0></ul><div class="mt6 instapaper_ignoref"></div></div><aside class="w-30-l mt6-l"></aside></article></main><footer class="bg-black bottom-0 w-100 pa3" role=contentinfo><div class="flex justify-between"><a class="f4 fw4 hover-white no-underline white-70 dn dib-ns pv2 ph3" href=https://zigius.github.io/>&copy; zlog - the zigius blog 2023</a><div><div class=ananke-socials></div></div></div></footer></body></html>
