@@ -131,4 +131,3 @@ as I expected them to.
 
 That's about it. I will continue updating this blog post and repo as I find some
 more tips and tricks on how to create neovim plugins so stay tuned.
-
