@@ -12,3 +12,11 @@ node_modules
 vendor
 ```
 
+The command to use as your FZF_DEFAULT_COMMAND so that it will respect the `.ignore` file is:
+```
+rg --files --no-ignore-vcs --hidden
+```
+
+This will only ignore files in the `.ignore` file. Files in the .gitignore file will still be shown.
+
+Im using ripgrep as my default search tool. Im not sure if this works with other search tools.
