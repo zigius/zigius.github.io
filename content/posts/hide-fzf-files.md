@@ -1,7 +1,7 @@
 ---
 title: "Hide Fzf Files"
 date: 2024-01-03T16:56:22+02:00
-draft: true
+draft: false
 ---
 
 # Hide Fzf Files
